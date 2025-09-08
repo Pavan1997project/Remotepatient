@@ -168,8 +168,6 @@ def test_add_patient(browser_context, form_data):
     page.get_by_role("button", name="VIEW PATIENT").click()
     text = page.locator("span.status_display.patient_prescribed").first.text_content()
     assert text.strip() == "Prescribed"
-    import pdb
-    pdb.set_trace()
     menu_toggle = page.locator('xpath=//*[@id="screenSmallToggle"]/img')
     if menu_toggle.is_visible():
         menu_toggle.click()
