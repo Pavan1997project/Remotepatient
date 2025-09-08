@@ -5,7 +5,7 @@ from openpyxl import load_workbook
 from playwright.sync_api import sync_playwright
 
 # ============================
-# CONFIG
+# 
 # ============================
 ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 EXCEL_FILE_PATH = os.path.join(ROOT_DIR, "patient_details_updated.xlsx")
