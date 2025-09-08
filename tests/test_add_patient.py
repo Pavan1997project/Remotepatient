@@ -174,6 +174,8 @@ def test_add_patient(browser_context, form_data):
         menu_toggle.click()
         page.wait_for_timeout(1000)
 
-    # Click Home menu item ONCE
-    page.get_by_role("heading", name="Home").first.click(force=True)
+    # # Click Home menu item ONCE
+    page.locator("xpath=/html/body/app-root/app-dashboard/mat-drawer-container/mat-drawer/div/app-side-bar/div/ul/app-profile-menu-button/div[2]/div/div[1]/span").click()
+    time.sleep(10)
+    page.click('//*[@id="myProfBackHome"]/img')
     time.sleep(10)
