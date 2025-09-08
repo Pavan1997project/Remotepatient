@@ -117,7 +117,7 @@ def test_add_patient(browser_context, form_data):
     page.fill("#addPatientlastname", str(form_data.get("Lastname", "")))
     page.fill("#addPatientemail", str(form_data.get("Email", "")))
     page.fill("#addPatientMobile", str(form_data.get("MobileNumber", "")))
-    page.fill("#addPatientDOB", "1997-10-01")
+    page.fill("#addPatientDOB", "1997-10-03")
 
     page.select_option("#addPatientheight", value=str(form_data.get("Height", "")))
     page.select_option("#addPatientGender", value="M")
