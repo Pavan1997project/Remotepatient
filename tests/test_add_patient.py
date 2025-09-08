@@ -7,8 +7,8 @@ from playwright.sync_api import sync_playwright
 # ============================
 # CONFIG
 # ============================
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-EXCEL_FILE_PATH = os.path.join(BASE_DIR, "patient_details_updated.xlsx")
+ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+EXCEL_FILE_PATH = os.path.join(ROOT_DIR, "patient_details_updated.xlsx")
 BASE_URL = "https://cx-dev-client.azurewebsites.net/login"
 
 
