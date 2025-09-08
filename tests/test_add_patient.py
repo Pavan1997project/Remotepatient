@@ -4,8 +4,9 @@ import pytest
 from openpyxl import load_workbook
 from playwright.sync_api import sync_playwright
 
+
 # ============================
-# CONFIG
+# CO
 # ============================
 ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 EXCEL_FILE_PATH = os.path.join(ROOT_DIR, "patient_details_updated.xlsx")
@@ -39,6 +40,7 @@ def load_credentials():
     if username and password:
         return username, password
 
+    # Local fallback (only for dev machine)
     try:
         with open("credentials.txt", "r") as file:
             lines = file.read().splitlines()
@@ -47,24 +49,13 @@ def load_credentials():
         raise RuntimeError("❌ No credentials found in env or file")
 
 
-def safe_click(page, selector, timeout=15000, **kwargs):
-    """Click an element safely by closing sidebar if open first."""
-    backdrop = page.locator("div.mat-drawer-backdrop.mat-drawer-shown")
-    if backdrop.is_visible():
-        print("⚠️ Drawer backdrop detected, closing...")
-        page.locator("div.menu-items:has(h3.menu-title:has-text('Home'))").click(force=True)
-        page.wait_for_selector("div.mat-drawer-backdrop.mat-drawer-shown", state="hidden", timeout=timeout)
-
-    page.wait_for_selector(selector, state="visible", timeout=timeout)
-    page.locator(selector).click(force=True, **kwargs)
-
-
 @pytest.fixture(scope="session")
 def browser_context():
     """Launch browser and login once per session."""
     username, password = load_credentials()
 
     with sync_playwright() as playwright:
+        # Detect if running in CI
         is_ci = os.getenv("CI") == "true"
 
         browser = playwright.chromium.launch(
@@ -72,21 +63,30 @@ def browser_context():
             slow_mo=1000 if not is_ci else 0,
             args=["--start-maximized"] if not is_ci else []
         )
-        context = browser.new_context(no_viewport=True)
+
+        # Context settings differ for CI vs Local
+        if is_ci:
+            context = browser.new_context(
+                viewport={"width": 1366, "height": 768}  # safe CI resolution
+            )
+        else:
+            context = browser.new_context(no_viewport=True)  # full window locally
+
         page = context.new_page()
 
-        # Open login page
+        # Open login page and wait until fully loaded
         page.goto(BASE_URL, wait_until="networkidle")
         page.wait_for_selector("#login_username", timeout=15000)
 
         # Fill credentials
         page.fill("#login_username", username)
         page.fill("#login_password", password)
+        page.fill("#login_password", password)
+        # Wait for login button enabled and click
         page.wait_for_selector("#btn_login:enabled", timeout=15000)
-        safe_click(page, "#btn_login")
-        time.sleep(5)
-
-        # Wait for home page
+        page.click("#btn_login")
+        time.sleep(30)
+        # Allow time for navigation
         page.wait_for_load_state("networkidle")
         page.wait_for_selector("#homeaddpatient", timeout=30000)
 
@@ -103,7 +103,9 @@ def test_add_patient(browser_context, form_data):
         pytest.skip("⚠️ Skipping row due to missing Firstname/Lastname")
 
     # Navigate to add patient
-    safe_click(page, "#homeaddpatient")
+    page.click("#homeaddpatient")
+    time.sleep(45)
+    page.wait_for_load_state("networkidle")
     page.wait_for_selector("#addPatientFirstname", timeout=10000)
 
     # Fill patient form
@@ -130,7 +132,7 @@ def test_add_patient(browser_context, form_data):
     page.fill("#addPatientAdditionalNotes", str(form_data.get("Notes", "")))
 
     # Submit draft
-    safe_click(page, "#btnaddPatientDraftSubmit")
+    page.click("#btnaddPatientDraftSubmit")
     locator = page.locator("h4.subheading-dialog")
     locator.wait_for(state="visible", timeout=5000)
     assert locator.inner_text() == "New Patient added Successfully!"
@@ -139,33 +141,42 @@ def test_add_patient(browser_context, form_data):
     program_name = str(form_data.get("ProgramName", "")).strip()
     vital_condition = str(form_data.get("VitalCondition", "")).strip()
 
-    safe_click(page, "#addPatient")
+    page.click("#addPatient")
 
     if program_name:
         page.select_option("#addPatientProgramName", label=program_name)
         page.fill("#addPatientStartDate", "2025-06-20")
 
     if vital_condition:
-        safe_click(page, "#addPatientvitalChange .mat-mdc-select-trigger")
+        page.wait_for_selector("#addPatientvitalChange .mat-mdc-select-trigger", timeout=30000)
+        page.click("#addPatientvitalChange .mat-mdc-select-trigger")
         page.wait_for_selector("mat-option span.mdc-list-item__primary-text", timeout=30000)
         page.get_by_text(vital_condition, exact=True).click()
 
     # Diagnosis
     diagnosis = str(form_data.get("Diagnosis", "")).strip()
     if diagnosis:
-        safe_click(page, "//button[normalize-space()='Program Info']")
+        page.get_by_role("button", name="Program Info").click(force=True)
         page.click("input[placeholder='Select Diagnosis']")
         page.get_by_text(diagnosis, exact=True).click()
 
     # Confirm
-    safe_click(page, "#btnaddPatientConfirmSubmit")
-    safe_click(page, "button.btn_save:has-text('CONFIRM')")
+    page.click("#btnaddPatientConfirmSubmit")
+    page.locator("button.btn_save", has_text="CONFIRM").click()
 
     # Verify prescribed
-    safe_click(page, "//button[normalize-space()='VIEW PATIENT']")
+    page.get_by_role("button", name="VIEW PATIENT").click()
     text = page.locator("span.status_display.patient_prescribed").first.text_content()
     assert text.strip() == "Prescribed"
+    import pdb
+    pdb.set_trace()
+    menu_toggle = page.locator('xpath=//*[@id="screenSmallToggle"]/img')
+    if menu_toggle.is_visible():
+        menu_toggle.click()
+        page.wait_for_timeout(1000)
 
-    # Go back home for next iteration
-    safe_click(page, "div.menu-items:has(h3.menu-title:has-text('Home'))")
-    page.wait_for_load_state("networkidle")
+    # # Click Home menu item ONCE
+    page.locator("xpath=/html/body/app-root/app-dashboard/mat-drawer-container/mat-drawer/div/app-side-bar/div/ul/app-profile-menu-button/div[2]/div/div[1]/span").click()
+    time.sleep(10)
+    page.click('//*[@id="myProfBackHome"]/img')
+    time.sleep(10)
