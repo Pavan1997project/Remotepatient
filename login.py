@@ -2,6 +2,7 @@
 
 import time
 import pytest
+import os
 from openpyxl import load_workbook
 from playwright.sync_api import sync_playwright
 
@@ -9,7 +10,9 @@ from playwright.sync_api import sync_playwright
 # ============================
 # CONFIG
 # ============================
-EXCEL_FILE_PATH = "C:/Users/rohit/RemotePatient/patient_details_updated.xlsx"
+
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+EXCEL_FILE_PATH = os.path.join(BASE_DIR, "patient_details_updated.xlsx")
 CREDENTIALS_FILE = r"C:\Users\rohit\credentials.txt"
 BASE_URL = "https://cx-dev-client.azurewebsites.net/login"
 
@@ -35,10 +38,20 @@ def load_excel_data():
 
 
 def load_credentials():
-    """Read username & password from credentials file."""
-    with open(CREDENTIALS_FILE, "r") as file:
-        lines = file.read().splitlines()
-        return lines[0].strip(), lines[1].strip()
+    username = os.getenv("APP_USERNAME")
+    password = os.getenv("APP_PASSWORD")
+
+    if username and password:
+        return username, password
+
+    # Local fallback (only for dev machine)
+    try:
+        with open("credentials.txt", "r") as file:
+            lines = file.read().splitlines()
+            return lines[0].strip(), lines[1].strip()
+    except FileNotFoundError:
+        raise RuntimeError("❌ No credentials found in env or file")
+
 
 
 @pytest.fixture(scope="session")
@@ -85,7 +98,7 @@ def test_add_patient(browser_context, form_data):
     # Navigate to add patient
     page.click("#homeaddpatient")
     page.wait_for_timeout(5000)
-    page.set_input_files("#image", r"C:\Users\rohit\Images\profile.jpg")
+    # page.set_input_files("#image", r"C:\Users\rohit\Images\profile.jpg")
     page.wait_for_timeout(1000)
     # Fill patient form
     page.fill("#addPatientFirstname", str(form_data.get("Firstname", "")))
@@ -157,16 +170,6 @@ def test_add_patient(browser_context, form_data):
     page.wait_for_timeout(5000)
 
 
-def test_editing_added_patient_details(browser_context):
-    """
-    This function is for editing existing patient details
-    :return:
-    """
-    # this method opens the webpage
-    page = browser_context
-    page.locator("div.menu-items:has(h3.menu-title:has-text('Patients'))").click(force=True)
-    page.wait_for_timeout(2000)
-    page.click("#p_patientNameSearch2")
-    time.sleep(3)
+
 
 
