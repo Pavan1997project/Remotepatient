@@ -1,4 +1,5 @@
 import os
+import time
 import pytest
 from openpyxl import load_workbook
 from playwright.sync_api import sync_playwright
@@ -77,7 +78,7 @@ def browser_context():
         # Wait for login button enabled and click
         page.wait_for_selector("#btn_login:enabled", timeout=15000)
         page.click("#btn_login")
-
+        time.sleep(30)
         # Wait for home page to load
         page.wait_for_load_state("networkidle")
         page.wait_for_selector("#homeaddpatient", timeout=30000)
@@ -108,6 +109,7 @@ def test_add_patient(browser_context, form_data):
 
     # Navigate to add patient
     page.click("#homeaddpatient")
+    time.sleep(45)
     page.wait_for_load_state("networkidle")
     page.wait_for_selector("#addPatientFirstname", timeout=10000)
 
