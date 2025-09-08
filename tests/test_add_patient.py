@@ -5,8 +5,6 @@ import pytest
 from openpyxl import load_workbook
 from playwright.sync_api import sync_playwright
 
-
-# ============================
 # CONFIG
 # ============================
 ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
