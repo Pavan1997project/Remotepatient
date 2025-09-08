@@ -4,9 +4,8 @@ import pytest
 from openpyxl import load_workbook
 from playwright.sync_api import sync_playwright
 
-
 # ============================
-# CO
+# CONFIG
 # ============================
 ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 EXCEL_FILE_PATH = os.path.join(ROOT_DIR, "patient_details_updated.xlsx")
@@ -40,7 +39,6 @@ def load_credentials():
     if username and password:
         return username, password
 
-    # Local fallback (only for dev machine)
     try:
         with open("credentials.txt", "r") as file:
             lines = file.read().splitlines()
@@ -63,18 +61,10 @@ def browser_context():
             slow_mo=1000 if not is_ci else 0,
             args=["--start-maximized"] if not is_ci else []
         )
-
-        # Context settings differ for CI vs Local
-        if is_ci:
-            context = browser.new_context(
-                viewport={"width": 1366, "height": 768}  # safe CI resolution
-            )
-        else:
-            context = browser.new_context(no_viewport=True)  # full window locally
-
+        context = browser.new_context(no_viewport=True)
         page = context.new_page()
 
-        # Open login page and wait until fully loaded
+        # Open login page
         page.goto(BASE_URL, wait_until="networkidle")
         page.wait_for_selector("#login_username", timeout=15000)
 
@@ -82,11 +72,11 @@ def browser_context():
         page.fill("#login_username", username)
         page.fill("#login_password", password)
         page.fill("#login_password", password)
-        # Wait for login button enabled and click
         page.wait_for_selector("#btn_login:enabled", timeout=15000)
         page.click("#btn_login")
         time.sleep(30)
-        # Allow time for navigation
+
+        # Wait for home page
         page.wait_for_load_state("networkidle")
         page.wait_for_selector("#homeaddpatient", timeout=30000)
 
@@ -102,8 +92,21 @@ def test_add_patient(browser_context, form_data):
     if not form_data.get("Firstname") or not form_data.get("Lastname"):
         pytest.skip("⚠️ Skipping row due to missing Firstname/Lastname")
 
+    # ======================
+    # FIX: Ensure backdrop closed before clicking ADD PATIENT
+    # ======================
+    try:
+        backdrop = page.locator("div.mat-drawer-backdrop.mat-drawer-shown")
+        if backdrop.is_visible():
+            page.locator("div.menu-items:has(h3.menu-title:has-text('Home'))").click(force=True)
+            page.wait_for_selector("div.mat-drawer-backdrop.mat-drawer-shown", state="hidden", timeout=10000)
+    except:
+        pass
+
     # Navigate to add patient
-    page.click("#homeaddpatient")
+    page.wait_for_selector("#homeaddpatient", state="visible", timeout=15000)
+    page.locator("#homeaddpatient").click(force=True)
+
     time.sleep(45)
     page.wait_for_load_state("networkidle")
     page.wait_for_selector("#addPatientFirstname", timeout=10000)
@@ -169,11 +172,7 @@ def test_add_patient(browser_context, form_data):
     text = page.locator("span.status_display.patient_prescribed").first.text_content()
     assert text.strip() == "Prescribed"
 
-    menu_toggle = page.locator('xpath=//*[@id="screenSmallToggle"]/img')
-    if menu_toggle.is_visible():
-        menu_toggle.click()
-        page.wait_for_timeout(1000)
-
-    # Click Home menu item ONCE
-    page.get_by_role("heading", name="Home").first.click(force=True)
-    time.sleep(10)
+    # Go back home for next iteration
+    page.locator("div.menu-items:has(h3.menu-title:has-text('Home'))").click(force=True)
+    time.sleep(30)
+    page.wait_for_load_state("networkidle")
