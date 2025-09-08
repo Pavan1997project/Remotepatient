@@ -169,6 +169,11 @@ def test_add_patient(browser_context, form_data):
     text = page.locator("span.status_display.patient_prescribed").first.text_content()
     assert text.strip() == "Prescribed"
 
-    # Go back home for next iteration
-    page.locator("div.menu-items:has(h3.menu-title:has-text('Home'))").click(force=True)
-    page.wait_for_load_state("networkidle")
+    menu_toggle = page.locator('xpath=//*[@id="screenSmallToggle"]/img')
+    if menu_toggle.is_visible():
+        menu_toggle.click()
+        page.wait_for_timeout(1000)
+
+    # Click Home menu item ONCE
+    page.get_by_role("heading", name="Home").first.click(force=True)
+    time.sleep(10)
