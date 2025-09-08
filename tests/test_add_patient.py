@@ -1,4 +1,3 @@
-
 import os
 import time
 import pytest
@@ -12,6 +11,7 @@ from playwright.sync_api import sync_playwright
 ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 EXCEL_FILE_PATH = os.path.join(ROOT_DIR, "patient_details_updated.xlsx")
 BASE_URL = "https://cx-dev-client.azurewebsites.net/login"
+
 
 def load_excel_data():
     """Load patient details from Excel and return as list of dicts."""
@@ -63,7 +63,15 @@ def browser_context():
             slow_mo=1000 if not is_ci else 0,
             args=["--start-maximized"] if not is_ci else []
         )
-        context = browser.new_context(no_viewport=True)
+
+        # Context settings differ for CI vs Local
+        if is_ci:
+            context = browser.new_context(
+                viewport={"width": 1366, "height": 768}  # safe CI resolution
+            )
+        else:
+            context = browser.new_context(no_viewport=True)  # full window locally
+
         page = context.new_page()
 
         # Open login page and wait until fully loaded
@@ -73,18 +81,18 @@ def browser_context():
         # Fill credentials
         page.fill("#login_username", username)
         page.fill("#login_password", password)
-        page.fill("#login_password", password)
+         page.fill("#login_password", password)
         # Wait for login button enabled and click
         page.wait_for_selector("#btn_login:enabled", timeout=15000)
         page.click("#btn_login")
         time.sleep(30)
-        # Wait for home page to load
+        # Allow time for navigation
         page.wait_for_load_state("networkidle")
         page.wait_for_selector("#homeaddpatient", timeout=30000)
 
         yield page
-
         browser.close()
+
 
 @pytest.mark.parametrize("form_data", load_excel_data())
 def test_add_patient(browser_context, form_data):
@@ -163,5 +171,4 @@ def test_add_patient(browser_context, form_data):
 
     # Go back home for next iteration
     page.locator("div.menu-items:has(h3.menu-title:has-text('Home'))").click(force=True)
-    time.sleep(30)
     page.wait_for_load_state("networkidle")
