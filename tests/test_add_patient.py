@@ -67,14 +67,14 @@ def browser_context():
         page = context.new_page()
         # Open the login page
         page.goto(BASE_URL)
-        page.wait_for_timeout(10000)
+        page.wait_for_timeout(30000)
 
         # Fill username & password
         page.fill("#login_username", username)
         page.fill("#login_password", password)
 
         # Wait until login button enabled, then click
-        page.wait_for_selector("#btn_login:enabled", timeout=10000)
+        page.wait_for_selector("#btn_login:enabled", timeout=30000)
         page.click("#btn_login")
         page.wait_for_timeout(30000)
 
