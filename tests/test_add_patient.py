@@ -1,3 +1,4 @@
+
 import os
 import time
 import pytest
@@ -11,8 +12,6 @@ from playwright.sync_api import sync_playwright
 ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 EXCEL_FILE_PATH = os.path.join(ROOT_DIR, "patient_details_updated.xlsx")
 BASE_URL = "https://cx-dev-client.azurewebsites.net/login"
-SCREENSHOT_DIR = os.path.join(ROOT_DIR, "screenshots")
-
 
 def load_excel_data():
     """Load patient details from Excel and return as list of dicts."""
@@ -86,18 +85,6 @@ def browser_context():
         yield page
 
         browser.close()
-
-
-@pytest.fixture(autouse=True)
-def capture_screenshot_on_failure(request, browser_context):
-    """Capture screenshot automatically on test failure."""
-    yield
-    if request.node.rep_call.failed:
-        os.makedirs(SCREENSHOT_DIR, exist_ok=True)
-        screenshot_path = os.path.join(SCREENSHOT_DIR, f"{request.node.name}.png")
-        browser_context.screenshot(path=screenshot_path, full_page=True)
-        print(f"❌ Screenshot saved: {screenshot_path}")
-
 
 @pytest.mark.parametrize("form_data", load_excel_data())
 def test_add_patient(browser_context, form_data):
@@ -176,4 +163,5 @@ def test_add_patient(browser_context, form_data):
 
     # Go back home for next iteration
     page.locator("div.menu-items:has(h3.menu-title:has-text('Home'))").click(force=True)
+    time.sleep(30)
     page.wait_for_load_state("networkidle")
