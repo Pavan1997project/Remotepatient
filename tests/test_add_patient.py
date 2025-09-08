@@ -47,13 +47,21 @@ def load_credentials():
         raise RuntimeError("❌ No credentials found in env or file")
 
 
+def close_drawer_if_open(page):
+    """If backdrop drawer is open, click Home to close it and wait until hidden."""
+    backdrop = page.locator("div.mat-drawer-backdrop.mat-drawer-shown")
+    if backdrop.is_visible():
+        print("⚠️ Drawer backdrop detected, closing...")
+        page.locator("div.menu-items:has(h3.menu-title:has-text('Home'))").click(force=True)
+        page.wait_for_selector("div.mat-drawer-backdrop.mat-drawer-shown", state="hidden", timeout=10000)
+
+
 @pytest.fixture(scope="session")
 def browser_context():
     """Launch browser and login once per session."""
     username, password = load_credentials()
 
     with sync_playwright() as playwright:
-        # Detect if running in CI
         is_ci = os.getenv("CI") == "true"
 
         browser = playwright.chromium.launch(
@@ -92,22 +100,12 @@ def test_add_patient(browser_context, form_data):
     if not form_data.get("Firstname") or not form_data.get("Lastname"):
         pytest.skip("⚠️ Skipping row due to missing Firstname/Lastname")
 
-    # ======================
-    # FIX: Ensure backdrop closed before clicking ADD PATIENT
-    # ======================
-    try:
-        backdrop = page.locator("div.mat-drawer-backdrop.mat-drawer-shown")
-        if backdrop.is_visible():
-            page.locator("div.menu-items:has(h3.menu-title:has-text('Home'))").click(force=True)
-            page.wait_for_selector("div.mat-drawer-backdrop.mat-drawer-shown", state="hidden", timeout=10000)
-    except:
-        pass
-
-    # Navigate to add patient
+    # Make sure backdrop is not blocking ADD PATIENT
+    close_drawer_if_open(page)
     page.wait_for_selector("#homeaddpatient", state="visible", timeout=15000)
     page.locator("#homeaddpatient").click(force=True)
 
-    time.sleep(45)
+    time.sleep(5)
     page.wait_for_load_state("networkidle")
     page.wait_for_selector("#addPatientFirstname", timeout=10000)
 
@@ -163,7 +161,8 @@ def test_add_patient(browser_context, form_data):
         page.click("input[placeholder='Select Diagnosis']")
         page.get_by_text(diagnosis, exact=True).click()
 
-    # Confirm
+    # Confirm (ensure backdrop not blocking)
+    close_drawer_if_open(page)
     page.click("#btnaddPatientConfirmSubmit")
     page.locator("button.btn_save", has_text="CONFIRM").click()
 
@@ -173,6 +172,6 @@ def test_add_patient(browser_context, form_data):
     assert text.strip() == "Prescribed"
 
     # Go back home for next iteration
+    close_drawer_if_open(page)
     page.locator("div.menu-items:has(h3.menu-title:has-text('Home'))").click(force=True)
-    time.sleep(30)
     page.wait_for_load_state("networkidle")
