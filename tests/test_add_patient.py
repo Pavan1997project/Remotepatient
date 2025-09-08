@@ -1,8 +1,8 @@
-import time
-import pytest
 import os
+import pytest
 from openpyxl import load_workbook
 from playwright.sync_api import sync_playwright
+
 
 # ============================
 # CONFIG
@@ -10,6 +10,7 @@ from playwright.sync_api import sync_playwright
 ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 EXCEL_FILE_PATH = os.path.join(ROOT_DIR, "patient_details_updated.xlsx")
 BASE_URL = "https://cx-dev-client.azurewebsites.net/login"
+SCREENSHOT_DIR = os.path.join(ROOT_DIR, "screenshots")
 
 
 def load_excel_data():
@@ -54,39 +55,52 @@ def browser_context():
     username, password = load_credentials()
 
     with sync_playwright() as playwright:
-        # Detect if running in CI (GitHub Actions sets CI=true)
+        # Detect if running in CI
         is_ci = os.getenv("CI") == "true"
 
         browser = playwright.chromium.launch(
-            headless=is_ci,  # ✅ headless in CI, headed locally
+            headless=is_ci,
             slow_mo=1000 if not is_ci else 0,
             args=["--start-maximized"] if not is_ci else []
         )
         context = browser.new_context(no_viewport=True)
-
         page = context.new_page()
-        # Open the login page
-        page.goto(BASE_URL)
-        page.wait_for_timeout(10000)
 
-        # Fill username & password
+        # Open login page and wait until fully loaded
+        page.goto(BASE_URL, wait_until="networkidle")
+        page.wait_for_selector("#login_username", timeout=15000)
+
+        # Fill credentials
         page.fill("#login_username", username)
         page.fill("#login_password", password)
 
-        # Wait until login button enabled, then click
-        page.wait_for_selector("#btn_login:enabled", timeout=10000)
+        # Wait for login button enabled and click
+        page.wait_for_selector("#btn_login:enabled", timeout=15000)
         page.click("#btn_login")
-        page.wait_for_timeout(30000)
 
-        yield page  # give the logged-in page to tests
+        # Wait for home page to load
+        page.wait_for_load_state("networkidle")
+        page.wait_for_selector("#homeaddpatient", timeout=30000)
+
+        yield page
 
         browser.close()
+
+
+@pytest.fixture(autouse=True)
+def capture_screenshot_on_failure(request, browser_context):
+    """Capture screenshot automatically on test failure."""
+    yield
+    if request.node.rep_call.failed:
+        os.makedirs(SCREENSHOT_DIR, exist_ok=True)
+        screenshot_path = os.path.join(SCREENSHOT_DIR, f"{request.node.name}.png")
+        browser_context.screenshot(path=screenshot_path, full_page=True)
+        print(f"❌ Screenshot saved: {screenshot_path}")
 
 
 @pytest.mark.parametrize("form_data", load_excel_data())
 def test_add_patient(browser_context, form_data):
     """Add patient using details from Excel."""
-
     page = browser_context
 
     if not form_data.get("Firstname") or not form_data.get("Lastname"):
@@ -94,7 +108,8 @@ def test_add_patient(browser_context, form_data):
 
     # Navigate to add patient
     page.click("#homeaddpatient")
-    page.wait_for_timeout(5000)
+    page.wait_for_load_state("networkidle")
+    page.wait_for_selector("#addPatientFirstname", timeout=10000)
 
     # Fill patient form
     page.fill("#addPatientFirstname", str(form_data.get("Firstname", "")))
@@ -118,15 +133,14 @@ def test_add_patient(browser_context, form_data):
     page.select_option("#addPatientRelation1", index=1)
     page.fill("xpath=//*[@id='addPatientRelation1_mobile']", value="1234567890")
     page.fill("#addPatientAdditionalNotes", str(form_data.get("Notes", "")))
-    page.wait_for_timeout(5000)
-    page.click("#btnaddPatientDraftSubmit")
 
-    # Verify success
+    # Submit draft
+    page.click("#btnaddPatientDraftSubmit")
     locator = page.locator("h4.subheading-dialog")
     locator.wait_for(state="visible", timeout=5000)
     assert locator.inner_text() == "New Patient added Successfully!"
 
-    # === Program & Vital ===
+    # Program & Vital
     program_name = str(form_data.get("ProgramName", "")).strip()
     vital_condition = str(form_data.get("VitalCondition", "")).strip()
 
@@ -142,7 +156,7 @@ def test_add_patient(browser_context, form_data):
         page.wait_for_selector("mat-option span.mdc-list-item__primary-text", timeout=30000)
         page.get_by_text(vital_condition, exact=True).click()
 
-    # === Diagnosis ===
+    # Diagnosis
     diagnosis = str(form_data.get("Diagnosis", "")).strip()
     if diagnosis:
         page.get_by_role("button", name="Program Info").click(force=True)
@@ -157,8 +171,7 @@ def test_add_patient(browser_context, form_data):
     page.get_by_role("button", name="VIEW PATIENT").click()
     text = page.locator("span.status_display.patient_prescribed").first.text_content()
     assert text.strip() == "Prescribed"
-    page.wait_for_timeout(8000)
 
     # Go back home for next iteration
     page.locator("div.menu-items:has(h3.menu-title:has-text('Home'))").click(force=True)
-    page.wait_for_timeout(5000)
+    page.wait_for_load_state("networkidle")
