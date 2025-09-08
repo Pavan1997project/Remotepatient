@@ -6,7 +6,7 @@ from playwright.sync_api import sync_playwright
 
 
 # ============================
-# CONFIG
+# CO
 # ============================
 ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 EXCEL_FILE_PATH = os.path.join(ROOT_DIR, "patient_details_updated.xlsx")
@@ -168,7 +168,13 @@ def test_add_patient(browser_context, form_data):
     page.get_by_role("button", name="VIEW PATIENT").click()
     text = page.locator("span.status_display.patient_prescribed").first.text_content()
     assert text.strip() == "Prescribed"
+    menu_toggle = page.locator('xpath=//*[@id="screenSmallToggle"]/img')
+    if menu_toggle.is_visible():
+        menu_toggle.click()
+        page.wait_for_timeout(1000)
 
-    # Go back home for next iteration
-    page.locator("div.menu-items:has(h3.menu-title:has-text('Home'))").click(force=True)
-    page.wait_for_load_state("networkidle")
+    # # Click Home menu item ONCE
+    page.locator("xpath=/html/body/app-root/app-dashboard/mat-drawer-container/mat-drawer/div/app-side-bar/div/ul/app-profile-menu-button/div[2]/div/div[1]/span").click()
+    time.sleep(10)
+    page.click('//*[@id="myProfBackHome"]/img')
+    time.sleep(10)
