@@ -163,10 +163,7 @@ def test_add_patient(browser_context, form_data):
     page.get_by_role("button", name="VIEW PATIENT").click()
     text = page.locator("span.status_display.patient_prescribed").first.text_content()
     assert text.strip() == "Prescribed"
-    time.sleep(7)
+    time.sleep(8)
     # Go back home for next iteration
     page.locator("div.menu-items:has(h3.menu-title:has-text('Home'))").click(force=True)
     page.wait_for_timeout(5000)
-
-
-
