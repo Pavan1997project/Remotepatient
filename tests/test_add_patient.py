@@ -81,7 +81,7 @@ def browser_context():
         # Fill credentials
         page.fill("#login_username", username)
         page.fill("#login_password", password)
-         page.fill("#login_password", password)
+        page.fill("#login_password", password)
         # Wait for login button enabled and click
         page.wait_for_selector("#btn_login:enabled", timeout=15000)
         page.click("#btn_login")
