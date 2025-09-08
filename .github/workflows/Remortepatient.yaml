@@ -24,14 +24,18 @@ jobs:
           playwright install --with-deps chromium
 
       - name: Run Playwright Tests
-        env:
-          APP_USERNAME: ${{ secrets.APP_USERNAME }}
-          APP_PASSWORD: ${{ secrets.APP_PASSWORD }}
-        run: pytest -v tests/ --html=report.html --self-contained-html
+        run: pytest -v tests/ --html=report.html --self-contained-html --maxfail=1 --disable-warnings
 
       - name: Upload HTML Report
-        if: always()   # upload report even if tests fail
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: pytest-report
           path: report.html
+
+      - name: Upload Screenshots
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: screenshots
+          path: ci_screenshots/
