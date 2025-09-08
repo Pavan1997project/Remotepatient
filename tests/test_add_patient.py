@@ -85,6 +85,7 @@ def browser_context():
         # Wait for login button enabled and click
         page.wait_for_selector("#btn_login:enabled", timeout=15000)
         page.click("#btn_login")
+        # wait time
         time.sleep(30)
         # Allow time for navigation
         page.wait_for_load_state("networkidle")
