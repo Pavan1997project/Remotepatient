@@ -1,19 +1,15 @@
-
-
 import time
 import pytest
 import os
 from openpyxl import load_workbook
 from playwright.sync_api import sync_playwright
 
-
 # ============================
 # CONFIG
 # ============================
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 EXCEL_FILE_PATH = os.path.join(BASE_DIR, "patient_details_updated.xlsx")
 BASE_URL = "https://cx-dev-client.azurewebsites.net/login"
-
 
 
 def load_excel_data():
@@ -21,7 +17,7 @@ def load_excel_data():
     try:
         wb = load_workbook(EXCEL_FILE_PATH)
     except FileNotFoundError:
-        pytest.skip(f"❌ Excel file not found at: {EXCEL_FILE_PATH}")
+        pytest.skip(f"❌ Excel file not found at: {EXCEL_FILE_PATH}", allow_module_level=True)
 
     sheet = wb[wb.sheetnames[0]]
     headers = [cell.value.strip().replace(" ", "") for cell in sheet[1]]
@@ -36,7 +32,7 @@ def load_excel_data():
 
 
 def load_credentials():
-    import os
+    """Load login credentials from environment or fallback file."""
     username = os.getenv("APP_USERNAME")
     password = os.getenv("APP_PASSWORD")
 
@@ -52,37 +48,39 @@ def load_credentials():
         raise RuntimeError("❌ No credentials found in env or file")
 
 
-
 @pytest.fixture(scope="session")
 def browser_context():
     """Launch browser and login once per session."""
     username, password = load_credentials()
 
     with sync_playwright() as playwright:
+        # Detect if running in CI (GitHub Actions sets CI=true)
+        is_ci = os.getenv("CI") == "true"
+
         browser = playwright.chromium.launch(
-            headless=False,
-            slow_mo=1000,
-            args=["--start-maximized"]  # 👈 open browser maximized
+            headless=is_ci,  # ✅ headless in CI, headed locally
+            slow_mo=1000 if not is_ci else 0,
+            args=["--start-maximized"] if not is_ci else []
         )
         context = browser.new_context(no_viewport=True)
 
         page = context.new_page()
         # Open the login page
-        page.goto("https://cx-dev-client.azurewebsites.net/login")
-        time.sleep(10)
-        # Fill username & password from file
+        page.goto(BASE_URL)
+        page.wait_for_timeout(10000)
+
+        # Fill username & password
         page.fill("#login_username", username)
         page.fill("#login_password", password)
-        page.fill("#login_password", password)
+
         # Wait until login button enabled, then click
         page.wait_for_selector("#btn_login:enabled", timeout=10000)
         page.click("#btn_login")
-        time.sleep(30)
+        page.wait_for_timeout(30000)
 
         yield page  # give the logged-in page to tests
 
         browser.close()
-
 
 
 @pytest.mark.parametrize("form_data", load_excel_data())
@@ -97,8 +95,7 @@ def test_add_patient(browser_context, form_data):
     # Navigate to add patient
     page.click("#homeaddpatient")
     page.wait_for_timeout(5000)
-    # page.set_input_files("#image", r"C:\Users\rohit\Images\profile.jpg")
-    page.wait_for_timeout(1000)
+
     # Fill patient form
     page.fill("#addPatientFirstname", str(form_data.get("Firstname", "")))
     page.fill("#addPatientMiddlename", str(form_data.get("Middlename", "")))
@@ -120,11 +117,8 @@ def test_add_patient(browser_context, form_data):
     page.fill("#addPatientEmergencyContact1", value="Andria")
     page.select_option("#addPatientRelation1", index=1)
     page.fill("xpath=//*[@id='addPatientRelation1_mobile']", value="1234567890")
-    # page.fill("#editEmergencyContact2", value="jacob")
-    # page.select_option("#editRelation2", index=4)
-    # page.fill("xpath=//*[@id='editRelation2_mobile']", value="1234567890")
     page.fill("#addPatientAdditionalNotes", str(form_data.get("Notes", "")))
-    time.sleep(5)
+    page.wait_for_timeout(5000)
     page.click("#btnaddPatientDraftSubmit")
 
     # Verify success
@@ -163,10 +157,8 @@ def test_add_patient(browser_context, form_data):
     page.get_by_role("button", name="VIEW PATIENT").click()
     text = page.locator("span.status_display.patient_prescribed").first.text_content()
     assert text.strip() == "Prescribed"
-    time.sleep(7)
+    page.wait_for_timeout(8000)
+
     # Go back home for next iteration
     page.locator("div.menu-items:has(h3.menu-title:has-text('Home'))").click(force=True)
     page.wait_for_timeout(5000)
-
-
-
