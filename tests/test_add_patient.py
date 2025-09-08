@@ -36,7 +36,6 @@ def load_excel_data():
 
 
 def load_credentials():
-    import os
     username = os.getenv("APP_USERNAME")
     password = os.getenv("APP_PASSWORD")
 
