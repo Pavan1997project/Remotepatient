@@ -4,12 +4,15 @@ import pytest
 from openpyxl import load_workbook
 from playwright.sync_api import sync_playwright
 
+# ============================
+# Paths & Constants
+# ============================
+CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
+RESOURCES_DIR = os.path.join(CURRENT_DIR, "resources")
 
-# ============================
-# CO
-# ============================
-ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-EXCEL_FILE_PATH = os.path.join(ROOT_DIR, "patient_details_updated.xlsx")
+EXCEL_FILE_PATH = os.path.join(RESOURCES_DIR, "patient_details.xlsx")
+IMAGE_FILE_PATH = os.path.join(RESOURCES_DIR, "profile.jpg")
+
 BASE_URL = "https://cx-dev-client.azurewebsites.net/login"
 
 
@@ -93,10 +96,9 @@ def browser_context():
         browser.close()
 
 
-
 @pytest.mark.parametrize("form_data", load_excel_data())
 def test_add_patient(browser_context, form_data):
-    """Add patient using details from Excel."""
+    """Add patient using details from Excel and upload image."""
     page = browser_context
 
     if not form_data.get("Firstname") or not form_data.get("Lastname"):
@@ -130,6 +132,10 @@ def test_add_patient(browser_context, form_data):
     page.select_option("#addPatientRelation1", index=1)
     page.fill("xpath=//*[@id='addPatientRelation1_mobile']", value="1234567890")
     page.fill("#addPatientAdditionalNotes", str(form_data.get("Notes", "")))
+
+    # ✅ Upload profile image (from resources folder)
+    if os.path.exists(IMAGE_FILE_PATH):
+        page.set_input_files("#image", IMAGE_FILE_PATH)
 
     # Submit draft
     page.click("#btnaddPatientDraftSubmit")
@@ -174,7 +180,7 @@ def test_add_patient(browser_context, form_data):
         menu_toggle.click()
         page.wait_for_timeout(1000)
 
-    # # Click Home menu item ONCE
+    # Go back to Home
     page.locator("xpath=/html/body/app-root/app-dashboard/mat-drawer-container/mat-drawer/div/app-side-bar/div/ul/app-profile-menu-button/div[2]/div/div[1]/span").click()
     time.sleep(10)
     page.click('//*[@id="myProfBackHome"]/img')
