@@ -10,7 +10,7 @@ from playwright.sync_api import sync_playwright
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 RESOURCES_DIR = os.path.join(CURRENT_DIR, "resources")
 
-EXCEL_FILE_PATH = os.path.join(RESOURCES_DIR, "patient_details.xlsx")
+EXCEL_FILE_PATH = os.path.join(RESOURCES_DIR, "patient_details_updated.xlsx")
 IMAGE_FILE_PATH = os.path.join(RESOURCES_DIR, "profile.jpg")
 
 BASE_URL = "https://cx-dev-client.azurewebsites.net/login"
