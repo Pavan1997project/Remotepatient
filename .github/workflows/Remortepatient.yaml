@@ -1,41 +1,53 @@
 name: PR CI - Playwright Automation
 
 on:
-  pull_request:
-    branches:
-      - main
+  workflow_dispatch:
+    inputs:
+      suite:
+        description: 'Choose test suite to run'
+        required: true
+        default: 'sanity'
+        type: choice
+        options:
+          - sanity
+          - regression
+          - all
 
 jobs:
   test:
     runs-on: ubuntu-latest
 
     steps:
+      # 1️⃣ Checkout repository
       - name: Checkout Repository
         uses: actions/checkout@v4
 
+      # 2️⃣ Set up Python
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.10'
 
+      # 3️⃣ Install dependencies
       - name: Install dependencies
         run: |
+          pip install --upgrade pip
           pip install pytest pytest-html playwright openpyxl
           playwright install --with-deps chromium
 
+      # 4️⃣ Run Playwright Tests
       - name: Run Playwright Tests
-        run: pytest -v tests/ --html=report.html --self-contained-html --maxfail=1 --disable-warnings
+        run: |
+          if [ "${{ github.event.inputs.suite }}" == "all" ]; then
+            pytest -v tests/ --html=report.html --self-contained-html --maxfail=1 --disable-warnings
+          else
+            pytest -v tests/ --html=report.html --self-contained-html --maxfail=1 --disable-warnings -m ${{ github.event.inputs.suite }}
+          fi
 
+      # 5️⃣ Upload HTML Report
       - name: Upload HTML Report
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: pytest-report
           path: report.html
-
-      - name: Upload Screenshots
-        if: failure()
-        uses: actions/upload-artifact@v4
-        with:
-          name: screenshots
-          path: ci_screenshots/

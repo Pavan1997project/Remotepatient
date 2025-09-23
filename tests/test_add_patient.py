@@ -92,8 +92,8 @@ def browser_context():
         yield page
         browser.close()
 
-
-
+@pytest.mark.sanity
+@pytest.mark.regression
 @pytest.mark.parametrize("form_data", load_excel_data())
 def test_add_patient(browser_context, form_data):
     """Add patient using details from Excel."""
