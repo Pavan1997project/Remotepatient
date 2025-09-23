@@ -1,6 +1,12 @@
 name: PR CI - Playwright Automation
 
 on:
+  # Run automatically for new PRs
+  pull_request:
+    branches:
+      - main
+
+  # Also allow manual trigger
   workflow_dispatch:
     inputs:
       suite:
@@ -38,10 +44,11 @@ jobs:
       # 4️⃣ Run Playwright Tests
       - name: Run Playwright Tests
         run: |
-          if [ "${{ github.event.inputs.suite }}" == "all" ]; then
+          SUITE="${{ github.event.inputs.suite || 'all' }}"
+          if [ "$SUITE" = "all" ]; then
             pytest -v tests/ --html=report.html --self-contained-html --maxfail=1 --disable-warnings
           else
-            pytest -v tests/ --html=report.html --self-contained-html --maxfail=1 --disable-warnings -m ${{ github.event.inputs.suite }}
+            pytest -v tests/ --html=report.html --self-contained-html --maxfail=1 --disable-warnings -m "$SUITE"
           fi
 
       # 5️⃣ Upload HTML Report
