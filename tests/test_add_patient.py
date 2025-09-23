@@ -83,7 +83,7 @@ def browser_context():
         page.wait_for_selector("#btn_login:enabled", timeout=15000)
         page.click("#btn_login")
 
-        time.sleep(30)  # wait for backend session to establish
+        time.sleep(31)  # wait for backend session to establish
 
         # Allow time for navigation
         page.wait_for_load_state("networkidle")
