@@ -6,7 +6,7 @@ on:
     branches:
       - main
 
-  # Also allow manual trigger
+  # Allow manual trigger
   workflow_dispatch:
     inputs:
       suite:
@@ -18,6 +18,10 @@ on:
           - sanity
           - regression
           - all
+
+  # Run every day at 9 PM IST (3:30 PM UTC)
+  schedule:
+    - cron: '30 15 * * *'
 
 jobs:
   test:
@@ -44,11 +48,17 @@ jobs:
       # 4️⃣ Run Playwright Tests
       - name: Run Playwright Tests
         run: |
-          SUITE="${{ github.event.inputs.suite || 'all' }}"
-          if [ "$SUITE" = "all" ]; then
-            pytest -v tests/ --html=report.html --self-contained-html --maxfail=1 --disable-warnings
+          if [ "${{ github.event_name }}" = "schedule" ]; then
+            # Always run sanity on schedule
+            pytest -v tests/ --html=report.html --self-contained-html --maxfail=1 --disable-warnings -m "sanity"
           else
-            pytest -v tests/ --html=report.html --self-contained-html --maxfail=1 --disable-warnings -m "$SUITE"
+            # Run based on manual/PR input
+            SUITE="${{ github.event.inputs.suite || 'all' }}"
+            if [ "$SUITE" = "all" ]; then
+              pytest -v tests/ --html=report.html --self-contained-html --maxfail=1 --disable-warnings
+            else
+              pytest -v tests/ --html=report.html --self-contained-html --maxfail=1 --disable-warnings -m "$SUITE"
+            fi
           fi
 
       # 5️⃣ Upload HTML Report
