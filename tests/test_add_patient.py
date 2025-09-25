@@ -34,8 +34,8 @@ def load_excel_data():
 
 def load_credentials():
     """Load login credentials from environment or fallback file."""
-    username = "nick"
-    password = "TEsplabs@123"
+    username = ""
+    password = ""
 
     if username and password:
         return username, password
