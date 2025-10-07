@@ -1,70 +1,101 @@
-name: PR CI - Playwright Automation
+name: CI - Playwright Automation (Scheduled + Manual)
 
 on:
-  # Run automatically for new PRs
-  pull_request:
-    branches:
-      - main
+  # 👇 Allows you to trigger the workflow manually for testing
+  workflow_dispatch: {}
 
-  # Allow manual trigger
-  workflow_dispatch:
-    inputs:
-      suite:
-        description: 'Choose test suite to run'
-        required: true
-        default: 'sanity'
-        type: choice
-        options:
-          - sanity
-          - regression
-          - all
-
-  # Run every day at 9 PM IST (3:30 PM UTC)
+  # 👇 These will only auto-trigger after merging to main
   schedule:
-    - cron: '30 15 * * *'
+    # ✅ Every day at 7 PM IST (1:30 PM UTC) → Sanity
+    - cron: "30 13 * * *"
+    # ✅ Every Friday at 6 PM IST (12:30 PM UTC) → Regression
+    - cron: "30 12 * * 5"
 
 jobs:
-  test:
+  # -----------------------
+  # Daily Sanity Job
+  # -----------------------
+  sanity-job:
+    if: |
+      (github.event_name == 'schedule' && github.event.schedule == '30 13 * * *') ||
+      (github.event_name == 'workflow_dispatch')
     runs-on: ubuntu-latest
-
+    env:
+      APP_USERNAME: ${{ secrets.APP_USERNAME }}
+      APP_PASSWORD: ${{ secrets.APP_PASSWORD }}
     steps:
-      # 1️⃣ Checkout repository
-      - name: Checkout Repository
+      - name: Checkout rpm-preprod Branch
         uses: actions/checkout@v4
+        with:
+          ref: rpm-preprod
 
-      # 2️⃣ Set up Python
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.10'
 
-      # 3️⃣ Install dependencies
       - name: Install dependencies
         run: |
           pip install --upgrade pip
           pip install pytest pytest-html playwright openpyxl
           playwright install --with-deps chromium
 
-      # 4️⃣ Run Playwright Tests
-      - name: Run Playwright Tests
+      - name: Run Sanity Tests
         run: |
-          if [ "${{ github.event_name }}" = "schedule" ]; then
-            # Always run sanity on schedule
-            pytest -v tests/ --html=report.html --self-contained-html --maxfail=1 --disable-warnings -m "sanity"
-          else
-            # Run based on manual/PR input
-            SUITE="${{ github.event.inputs.suite || 'all' }}"
-            if [ "$SUITE" = "all" ]; then
-              pytest -v tests/ --html=report.html --self-contained-html --maxfail=1 --disable-warnings
-            else
-              pytest -v tests/ --html=report.html --self-contained-html --maxfail=1 --disable-warnings -m "$SUITE"
-            fi
-          fi
+          pytest -v tests/ \
+            --html=report.html \
+            --self-contained-html \
+            --maxfail=1 \
+            --disable-warnings \
+            -m sanity
 
-      # 5️⃣ Upload HTML Report
       - name: Upload HTML Report
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: pytest-report
+          name: pytest-sanity-report
+          path: report.html
+
+  # -----------------------
+  # Friday Regression Job
+  # -----------------------
+  regression-job:
+    if: |
+      (github.event_name == 'schedule' && github.event.schedule == '30 12 * * 5') ||
+      (github.event_name == 'workflow_dispatch')
+    runs-on: ubuntu-latest
+    env:
+      APP_USERNAME: ${{ secrets.APP_USERNAME }}
+      APP_PASSWORD: ${{ secrets.APP_PASSWORD }}
+    steps:
+      - name: Checkout rpm-preprod Branch
+        uses: actions/checkout@v4
+        with:
+          ref: rpm-preprod
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip
+          pip install pytest pytest-html playwright openpyxl
+          playwright install --with-deps chromium
+
+      - name: Run Regression Tests
+        run: |
+          pytest -v tests/ \
+            --html=report.html \
+            --self-contained-html \
+            --maxfail=1 \
+            --disable-warnings \
+            -m regression
+
+      - name: Upload HTML Report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pytest-regression-report
           path: report.html
