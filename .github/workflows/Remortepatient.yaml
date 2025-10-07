@@ -1,6 +1,10 @@
-name: CI - Playwright Automation (Scheduled)
+name: CI - Playwright Automation (Scheduled + Manual)
 
 on:
+  # 👇 Allows you to trigger the workflow manually for testing
+  workflow_dispatch: {}
+
+  # 👇 These will only auto-trigger after merging to main
   schedule:
     # ✅ Every day at 7 PM IST (1:30 PM UTC) → Sanity
     - cron: "30 13 * * *"
@@ -12,7 +16,9 @@ jobs:
   # Daily Sanity Job
   # -----------------------
   sanity-job:
-    if: github.event_name == 'schedule' && github.event.schedule == '30 13 * * *'
+    if: |
+      (github.event_name == 'schedule' && github.event.schedule == '30 13 * * *') ||
+      (github.event_name == 'workflow_dispatch')
     runs-on: ubuntu-latest
     env:
       APP_USERNAME: ${{ secrets.APP_USERNAME }}
@@ -54,7 +60,9 @@ jobs:
   # Friday Regression Job
   # -----------------------
   regression-job:
-    if: github.event_name == 'schedule' && github.event.schedule == '30 12 * * 5'
+    if: |
+      (github.event_name == 'schedule' && github.event.schedule == '30 12 * * 5') ||
+      (github.event_name == 'workflow_dispatch')
     runs-on: ubuntu-latest
     env:
       APP_USERNAME: ${{ secrets.APP_USERNAME }}
