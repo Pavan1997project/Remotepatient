@@ -6,8 +6,8 @@ on:
 
   # 👇 Automated schedules (UTC time)
   schedule:
-    # ✅ Every day at 2:10 PM IST (8:40 AM UTC) → Sanity
-    - cron: "40 8 * * *"
+    # ✅ Every day at 2:20 PM IST (8:50 AM UTC) → Sanity
+    - cron: "50 8 * * *"
     # ✅ Every Friday at 6 PM IST (12:30 PM UTC) → Regression
     - cron: "30 12 * * 5"
 
@@ -16,7 +16,7 @@ jobs:
   # Daily Sanity Job
   # -----------------------
   sanity-job:
-    if: github.event.schedule == '40 8 * * *' || github.event_name == 'workflow_dispatch'
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     env:
       APP_USERNAME: ${{ secrets.APP_USERNAME }}
@@ -59,7 +59,7 @@ jobs:
   # Friday Regression Job
   # -----------------------
   regression-job:
-    if: github.event.schedule == '30 12 * * 5' || github.event_name == 'workflow_dispatch'
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     env:
       APP_USERNAME: ${{ secrets.APP_USERNAME }}
